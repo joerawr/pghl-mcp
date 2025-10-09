@@ -11,9 +11,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { logger } from './utils/logger.js';
 
-// Tool imports will be added as tools are implemented
-// import { getScheduleTool } from './tools/get_schedule.js';
-// import { getNextGameTool } from './tools/get_next_game.js';
+// Tool imports
+import { getScheduleTool } from './tools/get_schedule.js';
 import { listScheduleOptionsTool } from './tools/list_schedule_options.js';
 
 /**
@@ -26,9 +25,7 @@ export function registerTools(server: Server) {
 
     return {
       tools: [
-        // Tools will be added here as they're implemented in Phase 3 and 4
-        // getScheduleTool.definition,
-        // getNextGameTool.definition,
+        getScheduleTool.definition,
         listScheduleOptionsTool.definition,
       ],
     };
@@ -43,11 +40,8 @@ export function registerTools(server: Server) {
 
     try {
       switch (name) {
-        // Tool cases will be added here as they're implemented
-        // case 'get_schedule':
-        //   return await getScheduleTool.handler(args);
-        // case 'get_next_game':
-        //   return await getNextGameTool.handler(args);
+        case 'get_schedule':
+          return await getScheduleTool.handler(args);
         case 'list_schedule_options':
           return await listScheduleOptionsTool.handler(args);
 

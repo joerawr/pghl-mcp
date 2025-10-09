@@ -1,108 +1,157 @@
 /**
- * get_schedule Tool
- *
- * Fetches game schedules from scaha.net with optional date filtering.
+ * get_schedule MCP Tool
+ * Retrieve full game schedule for a team in PGHL
  */
 
-import { z } from 'zod';
-import { downloadScheduleCSVWithBrowser } from '../lib/browser-scrapers.js';
+import { GetScheduleArgsSchema } from '../mcp/schemas.js';
+import { scrapeSchedule } from '../scraper/schedule.js';
+import { getScheduleOptions } from '../scraper/discovery.js';
+import { logger } from '../utils/logger.js';
+import { normalizeTeamName } from '../utils/date-parser.js';
+import { TeamNotFoundError } from '../utils/errors.js';
 
-export const GetScheduleArgsSchema = z.object({
-  season: z.string().describe('Season name (e.g., "2025/26")'),
-  schedule: z.string().describe('Schedule name (e.g., "14U B")'),
-  team: z.string().describe('Team name (e.g., "Jr. Kings (1)")'),
-  date: z
-    .string()
-    .optional()
-    .describe('Filter to specific date (YYYY-MM-DD format)'),
-});
-
+/**
+ * Tool definition for MCP protocol
+ */
 export const getScheduleTool = {
   definition: {
     name: 'get_schedule',
-    description: 'Get game schedule from scaha.net with optional date filter',
+    description:
+      'Get the full game schedule for a PGHL team. Returns all games (past and future) for the specified team, including dates, opponents, venues, and game status. Use list_schedule_options first to discover available seasons, divisions, and teams.',
     inputSchema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         season: {
           type: 'string',
-          description: 'Season name (e.g., "2025/26")',
+          description:
+            "Season in YYYY-YY format (e.g., '2025-26'). Use list_schedule_options to discover available seasons.",
         },
-        schedule: {
+        division: {
           type: 'string',
-          description: 'Schedule name (e.g., "14U B")',
+          description:
+            "Division name (e.g., '12u AA', '14u AA'). Use list_schedule_options with season to discover available divisions.",
         },
         team: {
           type: 'string',
-          description: 'Team name (e.g., "Jr. Kings (1)")',
-        },
-        date: {
-          type: 'string',
-          description: 'Optional date filter (YYYY-MM-DD)',
+          description:
+            "Team name (e.g., 'Las Vegas Storm 12u AA'). Use list_schedule_options with season and division to discover available teams. Partial matches supported.",
         },
       },
-      required: ['season', 'schedule', 'team'],
+      required: ['season', 'division', 'team'],
     },
   },
 
-  handler: async (args: unknown) => {
-    try {
-      const { season, schedule, team, date } =
-        GetScheduleArgsSchema.parse(args);
+  /**
+   * Tool handler - executes the schedule scraping
+   */
+  async handler(args: unknown) {
+    logger.info('Executing get_schedule tool');
 
-      // Use browser automation to get CSV
-      const csvData = await downloadScheduleCSVWithBrowser(
-        season,
-        schedule,
-        team
+    try {
+      // Validate arguments
+      const validatedArgs = GetScheduleArgsSchema.parse(args);
+
+      logger.debug('Tool arguments validated:', validatedArgs);
+
+      const { season, division, team } = validatedArgs;
+
+      // First, discover available options to get IDs
+      logger.debug('Discovering team options to find team ID');
+
+      // Convert season format: "2025-26" → try to find matching option
+      // We need to call discovery to get the actual season ID
+      const allSeasons = await getScheduleOptions();
+
+      // Find season by matching label (e.g., "2025-26 12u-19u AA")
+      const seasonOption = allSeasons.seasons.find(
+        (s) => s.label.toLowerCase().includes(season.toLowerCase())
       );
 
-      // Parse CSV manually
-      const lines = csvData.trim().split('\n');
-      const games = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const match = lines[i].match(
-          /"([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)"/
+      if (!seasonOption) {
+        throw new Error(
+          `Season "${season}" not found. Available seasons:\n${allSeasons.seasons.map((s) => `- ${s.label}`).join('\n')}`
         );
-        if (match) {
-          const gameDate = match[2];
-
-          // Filter by date if specified
-          if (date && gameDate !== date) continue;
-
-          games.push({
-            game_id: match[1],
-            date: gameDate,
-            time: match[3],
-            type: match[4],
-            status: match[5],
-            home: match[6],
-            home_score: match[7] === '--' ? null : parseInt(match[7]),
-            away: match[8],
-            away_score: match[9] === '--' ? null : parseInt(match[9]),
-            venue: match[10],
-            rink: match[11],
-          });
-        }
       }
 
-      return {
+      // Get divisions for this season
+      const divisionOptions = await getScheduleOptions(seasonOption.value);
+      const divisionOption = divisionOptions.divisions.find(
+        (d) => d.label.toLowerCase() === division.toLowerCase()
+      );
+
+      if (!divisionOption) {
+        const availableDivisions = divisionOptions.divisions.map((d) => d.label);
+        throw new Error(
+          `Division "${division}" not found for season "${season}". Available divisions:\n${availableDivisions.map((d) => `- ${d}`).join('\n')}`
+        );
+      }
+
+      // Get teams for this division
+      const teamOptions = await getScheduleOptions(seasonOption.value, divisionOption.value);
+
+      // Find team by name (support partial matching)
+      const normalizedTeamQuery = normalizeTeamName(team);
+      const teamOption = teamOptions.teams.find(
+        (t) => normalizeTeamName(t.label).includes(normalizedTeamQuery)
+      ) || teamOptions.teams.find(
+        (t) => normalizeTeamName(t.label).includes(team.toLowerCase())
+      );
+
+      if (!teamOption) {
+        const availableTeams = teamOptions.teams.map((t) => t.label);
+        throw new TeamNotFoundError(team, division, season, availableTeams);
+      }
+
+      logger.info(`Found team: ${teamOption.label}`, {
+        seasonId: seasonOption.value,
+        divisionId: divisionOption.value,
+        teamId: teamOption.value,
+      });
+
+      // Scrape the schedule
+      const games = await scrapeSchedule(
+        seasonOption.value,
+        divisionOption.value,
+        teamOption.value,
+        season,
+        division
+      );
+
+      // Format response
+      const response = {
         content: [
           {
-            type: 'text' as const,
-            text: JSON.stringify(games, null, 2),
+            type: 'text',
+            text: JSON.stringify(
+              {
+                team: teamOption.label,
+                season: seasonOption.label,
+                division: divisionOption.label,
+                games,
+                totalGames: games.length,
+              },
+              null,
+              2
+            ),
           },
         ],
       };
+
+      logger.info('get_schedule completed successfully', {
+        team: teamOption.label,
+        gamesCount: games.length,
+      });
+
+      return response;
     } catch (error) {
+      logger.error('get_schedule failed:', error);
+
+      // Return error response
       return {
         content: [
           {
-            type: 'text' as const,
-            text: `Error fetching schedule: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            type: 'text',
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,

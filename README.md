@@ -48,40 +48,36 @@ This server uses Puppeteer for web scraping. Chrome or Chromium must be installe
 
 ## Available Tools
 
-### get_schedule
-Get team schedule with optional date filtering.
-
-**Parameters:**
-- `season` (required): Season identifier (e.g., "2025-26")
-- `division` (required): Division name (e.g., "12u AA", "14u AAA")
-- `team` (required): Team name (e.g., "Las Vegas Storm 12u AA")
-- `date` (optional): Filter to specific date (YYYY-MM-DD)
-
-**Example queries:**
-- "Get the schedule for Las Vegas Storm 12u AA in 2025-26"
-- "Does Las Vegas Storm 12u AA play on October 15, 2025?"
-
-### get_next_game
-Find the next upcoming game for a team.
-
-**Parameters:**
-- `season` (required): Season identifier
-- `division` (required): Division name
-- `team` (required): Team name
-
-**Example query:** "When does Las Vegas Storm 12u AA play next?"
-
 ### list_schedule_options
-List available seasons, divisions, and teams.
+Discover available seasons, divisions, and teams through progressive discovery.
 
 **Parameters:**
-- `season` (optional): Filter by season to get divisions
-- `division` (optional): Filter by division to get teams (requires season)
+- `season` (optional): Filter by season to get divisions (e.g., "2025-26")
+- `division` (optional): Filter by division to get teams (requires season, e.g., "12u AA")
 
 **Example queries:**
 - "What seasons are available in PGHL?"
 - "What divisions are in the 2025-26 PGHL season?"
 - "What teams are in 12u AA for 2025-26?"
+
+**Progressive Discovery:**
+1. Call with no parameters → get all seasons
+2. Call with `season` → get divisions for that season
+3. Call with `season` + `division` → get teams in that division
+
+### get_schedule
+Get full game schedule for a team.
+
+**Parameters:**
+- `season` (required): Season identifier (e.g., "2025-26")
+- `division` (required): Division name (e.g., "12u AA", "14u AAA")
+- `team` (required): Team name (e.g., "Las Vegas Storm 12u AA")
+
+**Example queries:**
+- "Get the schedule for Las Vegas Storm 12u AA in 2025-26"
+- "When does Las Vegas Storm 12u AA play next?" (LLM can filter future games)
+- "Does Las Vegas Storm 12u AA play on October 15, 2025?" (LLM can filter by date)
+- "Who does Las Vegas Storm play this weekend?" (LLM can filter date range)
 
 ## HTTP Deployment (Optional)
 
@@ -132,10 +128,10 @@ Data is scraped using Puppeteer from the HockeyShift platform.
 ## Features
 
 - ✅ Team schedule retrieval with date, time, opponent, venue
-- ✅ Next game queries ("when do we play next?")
-- ✅ Weekend game queries ("who do we play this weekend?")
 - ✅ Progressive team discovery (season → division → team)
-- ✅ Dual transport support (STDIO + StreamableHTTP)
+- ✅ Natural language queries supported (LLM filters schedule data)
+- ✅ Dual transport support (STDIO for Claude Desktop + StreamableHTTP for Vercel)
+- ✅ Partial team name matching for user convenience
 - ✅ Vercel deployment ready
 
 ## License
