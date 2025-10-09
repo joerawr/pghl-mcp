@@ -75,7 +75,7 @@ export const getScheduleCSVTool = {
         .replace(/[:.]/g, '-')
         .slice(0, -5);
 
-      const filename = `SCAHA_${year}_${tier}_${teamClean}_${timestamp}.csv`;
+      const filename = `PGHL_${year}_${tier}_${teamClean}_${timestamp}.csv`;
 
       return {
         content: [

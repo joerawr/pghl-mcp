@@ -1,10 +1,9 @@
 /**
- * SCAHA MCP Server - HTTP Transport
+ * PGHL MCP Server - HTTP Transport
  *
  * Implements HTTP transport for remote MCP server deployment.
- * See issue #2: Add dual-transport support (STDIO + HTTP)
  *
- * This provides HTTP/Streamable HTTP access to the same SCAHA tools
+ * This provides HTTP/Streamable HTTP access to the same PGHL tools
  * available via STDIO transport (src/index.ts).
  *
  * Architecture:

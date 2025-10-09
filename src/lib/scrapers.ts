@@ -26,7 +26,7 @@ interface JSFSession {
 async function initJSFSession(url: string): Promise<{ session: JSFSession; html: string }>{
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; SCAHA-MCP/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; PGHL-MCP/1.0)',
     },
   });
 
@@ -63,7 +63,7 @@ async function submitJSFForm(
   const response = await fetch(`${url};jsessionid=${session.jsessionid}`, {
     method: 'POST',
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; SCAHA-MCP/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; PGHL-MCP/1.0)',
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': `JSESSIONID=${session.jsessionid}`,
     },
