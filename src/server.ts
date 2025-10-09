@@ -14,7 +14,7 @@ import { logger } from './utils/logger.js';
 // Tool imports will be added as tools are implemented
 // import { getScheduleTool } from './tools/get_schedule.js';
 // import { getNextGameTool } from './tools/get_next_game.js';
-// import { listScheduleOptionsTool } from './tools/list_schedule_options.js';
+import { listScheduleOptionsTool } from './tools/list_schedule_options.js';
 
 /**
  * Register all PGHL tools with the MCP server
@@ -29,7 +29,7 @@ export function registerTools(server: Server) {
         // Tools will be added here as they're implemented in Phase 3 and 4
         // getScheduleTool.definition,
         // getNextGameTool.definition,
-        // listScheduleOptionsTool.definition,
+        listScheduleOptionsTool.definition,
       ],
     };
   });
@@ -48,8 +48,8 @@ export function registerTools(server: Server) {
         //   return await getScheduleTool.handler(args);
         // case 'get_next_game':
         //   return await getNextGameTool.handler(args);
-        // case 'list_schedule_options':
-        //   return await listScheduleOptionsTool.handler(args);
+        case 'list_schedule_options':
+          return await listScheduleOptionsTool.handler(args);
 
         default:
           throw new Error(`Unknown tool: ${name}`);

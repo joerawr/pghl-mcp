@@ -1,77 +1,81 @@
 /**
- * list_schedule_options Tool
- *
- * Lists available seasons, schedules, and teams from the scoreboard page.
+ * list_schedule_options MCP Tool
+ * Discover available seasons, divisions, and teams in PGHL
  */
 
-import { z } from 'zod';
-import { getScoreboardOptionsWithBrowser } from '../lib/browser-scrapers.js';
+import { ListScheduleOptionsArgsSchema } from '../mcp/schemas.js';
+import { getScheduleOptions } from '../scraper/discovery.js';
+import { logger } from '../utils/logger.js';
 
-export const ListScheduleOptionsArgsSchema = z.object({
-  season: z
-    .string()
-    .optional()
-    .describe('Optional season name (e.g., "SCAHA 2025/26 Season") to target'),
-  schedule: z
-    .string()
-    .optional()
-    .describe('Optional schedule name (e.g., "14U B Regular Season") to target'),
-  team: z.string().optional().describe('Optional team name to target'),
-});
-
+/**
+ * Tool definition for MCP protocol
+ */
 export const listScheduleOptionsTool = {
   definition: {
     name: 'list_schedule_options',
     description:
-      'List available seasons, schedules, and teams from the scoreboard page',
+      'Discover available seasons, divisions, and teams in PGHL (Pacific Girls Hockey League). Use this tool to explore what data is available before querying schedules. Supports progressive discovery: provide season to get divisions, provide season+division to get teams. Returns dropdown options as they appear on the PGHL website.',
     inputSchema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         season: {
           type: 'string',
           description:
-            'Optional season name (e.g., "SCAHA 2025/26 Season") to target',
+            "Optional season filter in YYYY-YY format (e.g., '2025-26'). If provided, the divisions array will be populated with divisions available in this season. If omitted, only seasons array is populated.",
         },
-        schedule: {
+        division: {
           type: 'string',
           description:
-            'Optional schedule name (e.g., "14U B Regular Season") to target',
-        },
-        team: {
-          type: 'string',
-          description: 'Optional team name to target',
+            "Optional division filter (e.g., '12u AA'). Requires season parameter. If provided, the teams array will be populated with teams in this division. If omitted, teams array is empty.",
         },
       },
     },
   },
 
-  handler: async (args: unknown) => {
-    try {
-      const { season, schedule, team } =
-        ListScheduleOptionsArgsSchema.parse(args);
+  /**
+   * Tool handler - executes the discovery scraping
+   */
+  async handler(args: unknown) {
+    logger.info('Executing list_schedule_options tool');
 
-      const options = await getScoreboardOptionsWithBrowser(
-        season,
-        schedule,
-        team
+    try {
+      // Validate arguments
+      const validatedArgs = ListScheduleOptionsArgsSchema.parse(args);
+
+      logger.debug('Tool arguments validated:', validatedArgs);
+
+      // Execute discovery
+      const options = await getScheduleOptions(
+        validatedArgs.season,
+        validatedArgs.division
       );
 
-      return {
+      // Format response
+      const response = {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: JSON.stringify(options, null, 2),
           },
         ],
       };
+
+      logger.info('list_schedule_options completed successfully', {
+        seasonsCount: options.seasons.length,
+        divisionsCount: options.divisions.length,
+        teamsCount: options.teams.length,
+      });
+
+      return response;
     } catch (error) {
+      logger.error('list_schedule_options failed:', error);
+
+      // Return error response
       return {
         content: [
           {
-            type: 'text' as const,
-            text: `Error listing schedule options: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            type: 'text',
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
         isError: true,
