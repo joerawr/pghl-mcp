@@ -1,0 +1,64 @@
+{
+  "name": "@joerawr/pghl-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for PGHL (Pacific Girls Hockey League) schedule data via Puppeteer scraping",
+  "type": "module",
+  "bin": {
+    "pghl-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/index.js",
+    "build:stdio": "tsc -p tsconfig.build.json && chmod +x dist/index.js",
+    "build:http": "cd http && next build && cd ..",
+    "build:all": "npm run build:stdio && npm run build:http",
+    "dev": "tsx src/index.ts",
+    "dev:http": "cd http && next dev",
+    "test": "tsx src/index.ts",
+    "start": "cd http && next start",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build:stdio"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joerawr/pghl-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "pghl",
+    "pacific-girls-hockey-league",
+    "hockey",
+    "schedule",
+    "puppeteer",
+    "youth-hockey"
+  ],
+  "author": "joerawr",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/joerawr/pghl-mcp/issues"
+  },
+  "homepage": "https://github.com/joerawr/pghl-mcp#readme",
+  "dependencies": {
+    "@date-fns/tz": "^1.4.1",
+    "@modelcontextprotocol/sdk": "^1.18.2",
+    "@sparticuz/chromium": "^140.0.0",
+    "cheerio": "^1.1.2",
+    "date-fns": "^4.1.0",
+    "mcp-handler": "^1.0.2",
+    "next": "^15.5.4",
+    "puppeteer-core": "^24.23.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.1",
+    "@types/react": "19.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  }
+}
