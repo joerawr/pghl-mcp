@@ -1,6 +1,6 @@
 {
   "name": "@joerawr/pghl-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for PGHL (Pacific Girls Hockey League) schedule data via Puppeteer scraping",
   "type": "module",
   "bin": {
