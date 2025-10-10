@@ -73,8 +73,8 @@ export const getScheduleTool = {
         );
       }
 
-      // Get divisions for this season
-      const divisionOptions = await getScheduleOptions(seasonOption.value);
+      // Get divisions for this season (pass label, not value)
+      const divisionOptions = await getScheduleOptions(seasonOption.label);
       const divisionOption = divisionOptions.divisions.find(
         (d) => d.label.toLowerCase() === division.toLowerCase()
       );
@@ -86,8 +86,8 @@ export const getScheduleTool = {
         );
       }
 
-      // Get teams for this division
-      const teamOptions = await getScheduleOptions(seasonOption.value, divisionOption.value);
+      // Get teams for this division (pass labels, not values)
+      const teamOptions = await getScheduleOptions(seasonOption.label, divisionOption.label);
 
       // Find team by name (support partial matching)
       const normalizedTeamQuery = normalizeTeamName(team);
