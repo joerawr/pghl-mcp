@@ -236,6 +236,16 @@ export async function scrapeSchedule(
     // No need to select season or division from dropdowns - already selected via URL parameters
     logger.debug('Season and division pre-selected via URL, skipping dropdown selection');
 
+    // Wait for any AJAX calls triggered by Angular to complete
+    // The URL parameters trigger Angular to load data, but we need to wait for it
+    logger.debug('Waiting for Angular AJAX to populate schedule...');
+    try {
+      await page.waitForNetworkIdle({ timeout: 10000 });
+      logger.debug('Network idle - Angular should have loaded data');
+    } catch (error) {
+      logger.warn('Network did not go idle, continuing anyway');
+    }
+
     // Team selection: Only needed if filtering to specific team
     // When teamId is null, URL parameters default to "All Teams" automatically
     if (teamId) {
@@ -300,8 +310,21 @@ export async function scrapeSchedule(
       }
     }
 
-    // Wait for schedule table to populate
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Wait for schedule table to populate (longer wait for Vercel)
+    logger.debug('Waiting for Angular to populate schedule table...');
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Debug: Check what's on the page
+    const pageDebug = await page.evaluate(() => {
+      const tables = document.querySelectorAll('table');
+      const selects = document.querySelectorAll('select');
+      return {
+        tableCount: tables.length,
+        selectCount: selects.length,
+        bodyText: document.body.innerText.substring(0, 500),
+      };
+    });
+    logger.debug('Page state before extraction:', pageDebug);
 
     // Extract schedule table
     const tableData = await extractScheduleTable(page);
