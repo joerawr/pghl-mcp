@@ -7,25 +7,26 @@ import { logger } from './logger.js';
 
 /**
  * Known season ID mappings from PGHL website
+ * Values are just the numeric IDs (for URL parameters)
  * Updated: 2025-10-10
  */
 const SEASON_ID_MAP: Record<string, string> = {
   // 2025-26 Season
-  '2025-26 12u-19u AA': 'number:9486',
-  '2025-26 14-19u Tier 1': 'number:9485',
+  '2025-26 12u-19u AA': '9486',
+  '2025-26 14-19u Tier 1': '9485',
 
   // 2024-25 Season
-  '2024-25 Championships': 'number:8540',
-  '2024-25 12u-19u AA': 'number:7722',
-  '2024-25 14-19u Tier 1': 'number:7721',
+  '2024-25 Championships': '8540',
+  '2024-25 12u-19u AA': '7722',
+  '2024-25 14-19u Tier 1': '7721',
 
   // 2023-24 Season
-  '2023-24 Championships': 'number:6877',
-  '2023-24 Season': 'number:5979',
+  '2023-24 Championships': '6877',
+  '2023-24 Season': '5979',
 
   // 2022-23 Season
-  '2022-23 Championships': 'number:5143',
-  '2022-23 Season': 'number:4679',
+  '2022-23 Championships': '5143',
+  '2022-23 Season': '4679',
 };
 
 /**
