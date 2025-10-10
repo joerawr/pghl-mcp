@@ -229,24 +229,11 @@ export async function scrapeSchedule(
   try {
     const page = await createPage(browser);
 
-    // Navigate to schedule page
-    await navigateToSchedulePage(page);
+    // Navigate to schedule page with season pre-selected via URL parameter
+    // This bypasses the need to select from dropdown, which is more reliable on serverless
+    await navigateToSchedulePage(page, seasonId);
 
-    // Select season
-    const seasonSelectors = [
-      'select[ng-model*="season"]',
-      'select[name="season"]',
-      'select#season',
-    ];
-
-    for (const selector of seasonSelectors) {
-      try {
-        await selectDropdownOption(page, selector, seasonId, 'season');
-        break;
-      } catch (error) {
-        continue;
-      }
-    }
+    // No need to select season from dropdown - already selected via URL parameter
 
     // Select division
     const divisionSelectors = [

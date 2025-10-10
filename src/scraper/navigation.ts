@@ -58,9 +58,17 @@ async function waitForAngular(page: Page): Promise<void> {
 
 /**
  * Navigate to PGHL schedule page and wait for Angular to render
+ *
+ * @param page - Puppeteer page instance
+ * @param seasonId - Optional season ID to pre-select (e.g., "number:9486")
  */
-export async function navigateToSchedulePage(page: Page): Promise<void> {
-  const url = `${PGHL_SCHEDULE_URL}/stats#/${PGHL_LEAGUE_ID}/schedule`;
+export async function navigateToSchedulePage(page: Page, seasonId?: string): Promise<void> {
+  let url = `${PGHL_SCHEDULE_URL}/stats#/${PGHL_LEAGUE_ID}/schedule`;
+
+  // Add season_id parameter if provided (bypasses dropdown selection)
+  if (seasonId) {
+    url += `?season_id=${encodeURIComponent(seasonId)}`;
+  }
 
   logger.info(`Navigating to PGHL schedule page: ${url}`);
 
