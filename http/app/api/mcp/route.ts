@@ -14,9 +14,10 @@
 
 import { createMcpHandler } from 'mcp-handler';
 import {
-  getScheduleTool,
   GetScheduleArgsSchema,
-} from '../../../../src/tools/get_schedule.js';
+  ListScheduleOptionsArgsSchema,
+} from '../../../../src/mcp/schemas.js';
+import { getScheduleTool } from '../../../../src/tools/get_schedule.js';
 import {
   getTeamStatsTool,
   GetTeamStatsArgsSchema,
@@ -29,10 +30,7 @@ import {
   getScheduleCSVTool,
   GetScheduleCSVArgsSchema,
 } from '../../../../src/tools/get_schedule_csv.js';
-import {
-  listScheduleOptionsTool,
-  ListScheduleOptionsArgsSchema,
-} from '../../../../src/tools/list_schedule_options.js';
+import { listScheduleOptionsTool } from '../../../../src/tools/list_schedule_options.js';
 
 /**
  * Some transports (including Streamable HTTP) wrap tool arguments under an
