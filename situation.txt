@@ -1,0 +1,30 @@
+  Current Situation
+
+  Problem: PGHL schedule scraping works perfectly locally but fails on Vercel with "No select elements found"
+
+  What we've tried:
+  1. ✅ Season/division mapping - works
+  2. ❌ URL parameters (?season_id=9486&division_id=42897) - doesn't trigger table rendering on Vercel
+  3. ❌ Dropdown selection - selects don't render in time on Vercel even with 25s+ timeout
+
+  Root cause: Angular SPA isn't rendering the schedule page dropdowns on Vercel's serverless Chrome, even though:
+  - Page loads (31KB HTML)
+  - [ng-app] element exists
+  - Angular is initialized (ng-scope class present)
+  - Works perfectly in local environment
+
+  Key Observations
+
+  1. Page loads but Angular doesn't populate: The HTML loads, Angular bootstraps, but the selects never render
+  2. Time isn't the issue: We've tried up to 25+ seconds of waiting
+  3. SCAHA-MCP works on Vercel: Same pattern (Puppeteer + Angular dropdowns) works for SCAHA
+
+  Possible Directions
+
+  1. Check SCAHA-MCP differences: What's different about how SCAHA-MCP handles this vs PGHL-MCP?
+  2. Try different navigation strategy: Maybe the hash-based routing #/1447/schedule behaves differently
+  3. Screenshot debugging: Take screenshot on Vercel to see what's actually rendering
+  4. Check Chromium flags: Maybe @sparticuz/chromium needs different flags for this site
+  5. Accept the limitation: Focus on local-only or consider alternative approaches
+
+  What direction would you like to explore?

@@ -35,19 +35,31 @@ async function waitForAngular(page: Page, requireSelects: boolean = true): Promi
     await page.waitForSelector('[ng-app]', { timeout: 15000 });
     logger.debug('Found [ng-app] element');
 
-    // Additional wait for Angular to finish rendering
-    await delay(3000);
+    // Additional wait for Angular to finish rendering (longer for Vercel)
+    logger.debug('Waiting for Angular to render DOM...');
+    await delay(5000);
 
     // Only check for select elements if required (not needed when bypassing via URL params)
     if (requireSelects) {
       // Try to wait for any select element to appear (common on schedule page)
+      // Use longer timeout for Vercel serverless environment
       try {
-        await page.waitForSelector('select', { timeout: 10000 });
+        logger.debug('Waiting for select dropdowns to render...');
+        await page.waitForSelector('select', { timeout: 20000 });
         logger.debug('Found select element');
       } catch {
-        // If no select found, dump page HTML for debugging
+        // If no select found after extended wait, dump page HTML for debugging
         const bodyHTML = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
         logger.error('No select elements found after Angular load. Page HTML sample:', bodyHTML);
+
+        // Check if any Angular errors occurred
+        const angularErrors = await page.evaluate(() => {
+          return (window as any).angular?.errors || [];
+        });
+        if (angularErrors.length > 0) {
+          logger.error('Angular errors detected:', angularErrors);
+        }
+
         throw new Error('No select elements found - page may not have loaded correctly');
       }
     } else {
