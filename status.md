@@ -1,6 +1,8 @@
   ✅ Constitution Created Successfully
 
-  Version: 1.0.0Ratified: 2025-10-08Location: /Users/jrogers/code/github/HockeyGoTime_SCAHAMCP/pghl-mcp/.specify/memory/constitution.md
+  Version: 1.0.0
+  Ratified: 2025-10-08
+  Location: /Users/jrogers/code/github/HockeyGoTime_SCAHAMCP/pghl-mcp/.specify/memory/constitution.md
 
   Core Principles Established
 
