@@ -229,31 +229,17 @@ export async function scrapeSchedule(
   try {
     const page = await createPage(browser);
 
-    // Navigate to schedule page with season pre-selected via URL parameter
-    // This bypasses the need to select from dropdown, which is more reliable on serverless
-    await navigateToSchedulePage(page, seasonId);
+    // Navigate to schedule page with season AND division pre-selected via URL parameters
+    // This bypasses ALL dropdown selection, which is more reliable on serverless
+    await navigateToSchedulePage(page, seasonId, divisionId);
 
-    // No need to select season from dropdown - already selected via URL parameter
+    // No need to select season or division from dropdowns - already selected via URL parameters
+    logger.debug('Season and division pre-selected via URL, skipping dropdown selection');
 
-    // Select division
-    const divisionSelectors = [
-      'select[ng-model*="division"]',
-      'select[name="division"]',
-      'select#division',
-    ];
-
-    for (const selector of divisionSelectors) {
-      try {
-        await selectDropdownOption(page, selector, divisionId, 'division');
-        break;
-      } catch (error) {
-        continue;
-      }
-    }
-
-    // If teamId provided, select specific team
-    // Otherwise, select "All Teams" to get division-wide schedule
+    // Team selection: Only needed if filtering to specific team
+    // When teamId is null, URL parameters default to "All Teams" automatically
     if (teamId) {
+      logger.debug(`Selecting specific team: ${teamId}`);
       const teamSelectors = [
         'select[ng-model*="team"]',
         'select[name="team"]',
@@ -265,42 +251,14 @@ export async function scrapeSchedule(
           await selectDropdownOption(page, selector, teamId, 'team');
           break;
         } catch (error) {
+          // If team selection fails, continue anyway - URL params may have handled it
+          logger.warn(`Could not select team via dropdown: ${error}`);
           continue;
         }
       }
     } else {
-      // Select "All Teams" option for division-wide schedule
-      logger.debug('Selecting "All Teams" for division-wide schedule');
-      const teamSelectors = [
-        'select[ng-model*="team"]',
-        'select[name="team"]',
-        'select#team',
-      ];
-
-      for (const selector of teamSelectors) {
-        try {
-          // Find "All Teams" option (usually first option or value "0")
-          const allTeamsValue = await page.evaluate((sel) => {
-            const select = document.querySelector(sel) as HTMLSelectElement;
-            if (!select) return null;
-
-            // Look for "All Teams" option
-            const allOption = Array.from(select.options).find(
-              (opt) => opt.text.toLowerCase().includes('all') || opt.value === '0' || opt.value === ''
-            );
-
-            return allOption ? allOption.value : select.options[0]?.value;
-          }, selector);
-
-          if (allTeamsValue !== null) {
-            await page.select(selector, allTeamsValue);
-            logger.debug(`Selected "All Teams" with value: ${allTeamsValue}`);
-            break;
-          }
-        } catch (error) {
-          continue;
-        }
-      }
+      // No teamId provided - URL parameters will default to "All Teams"
+      logger.debug('No team filter - showing all teams in division (via URL default)');
     }
 
     // Select scope: CURRENT SCHEDULE or FULL SCHEDULE

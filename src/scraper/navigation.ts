@@ -66,13 +66,26 @@ async function waitForAngular(page: Page, requireSelects: boolean = true): Promi
  *
  * @param page - Puppeteer page instance
  * @param seasonId - Optional season ID to pre-select (e.g., "9486")
+ * @param divisionId - Optional division ID to pre-select (e.g., "42897")
  */
-export async function navigateToSchedulePage(page: Page, seasonId?: string): Promise<void> {
+export async function navigateToSchedulePage(
+  page: Page,
+  seasonId?: string,
+  divisionId?: string
+): Promise<void> {
   let url = `${PGHL_SCHEDULE_URL}/stats#/${PGHL_LEAGUE_ID}/schedule`;
 
-  // Add season_id parameter if provided (bypasses dropdown selection)
+  // Add URL parameters if provided (bypasses dropdown selection)
+  const params = new URLSearchParams();
   if (seasonId) {
-    url += `?season_id=${encodeURIComponent(seasonId)}`;
+    params.append('season_id', seasonId);
+  }
+  if (divisionId) {
+    params.append('division_id', divisionId);
+  }
+
+  if (params.toString()) {
+    url += `?${params.toString()}`;
   }
 
   logger.info(`Navigating to PGHL schedule page: ${url}`);
@@ -87,8 +100,9 @@ export async function navigateToSchedulePage(page: Page, seasonId?: string): Pro
     logger.debug('Page navigation completed, waiting for Angular...');
 
     // Wait for Angular to render
-    // Don't require select elements if we're using URL parameter (seasonId provided)
-    await waitForAngular(page, !seasonId);
+    // Don't require select elements if we're using URL parameters
+    const usingUrlParams = !!(seasonId || divisionId);
+    await waitForAngular(page, !usingUrlParams);
 
     logger.debug('PGHL schedule page loaded');
   } catch (error) {
