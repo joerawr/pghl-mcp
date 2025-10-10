@@ -70,8 +70,8 @@ export const getScheduleTool = {
 
       logger.info(`Resolved season "${season}" to ID: ${seasonId}, label: ${seasonLabel}`);
 
-      // Get divisions for this season (pass label, not value)
-      const divisionOptions = await getScheduleOptions(seasonLabel);
+      // Get divisions for this season (pass label AND seasonId for URL navigation)
+      const divisionOptions = await getScheduleOptions(seasonLabel, undefined, seasonId);
       const divisionOption = divisionOptions.divisions.find(
         (d) => d.label.toLowerCase() === division.toLowerCase()
       );

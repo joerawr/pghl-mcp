@@ -171,9 +171,12 @@ export async function selectDropdownOption(
 /**
  * Get season options from PGHL schedule page
  * This is the first step in progressive discovery
+ *
+ * @param page - Puppeteer page instance
+ * @param seasonId - Optional season ID to pre-select via URL (e.g., "number:9486")
  */
-export async function getSeasonOptions(page: Page): Promise<SelectOption[]> {
-  await navigateToSchedulePage(page);
+export async function getSeasonOptions(page: Page, seasonId?: string): Promise<SelectOption[]> {
+  await navigateToSchedulePage(page, seasonId);
 
   // HockeyShift typically uses a season selector with id or class
   // Common selectors to try (in order of preference)

@@ -27,21 +27,23 @@ function findOptionByLabel(options: SelectOption[], label: string): SelectOption
  *
  * @param seasonLabel - Optional season label (e.g., "2025-26") to get divisions
  * @param divisionLabel - Optional division label (e.g., "12u AA") to get teams (requires season)
+ * @param seasonId - Optional season ID for URL navigation (e.g., "number:9486")
  * @returns ScheduleOptions with available seasons, divisions, and teams
  */
 export async function getScheduleOptions(
   seasonLabel?: string,
-  divisionLabel?: string
+  divisionLabel?: string,
+  seasonId?: string
 ): Promise<ScheduleOptions> {
-  logger.info('Getting schedule options', { season: seasonLabel, division: divisionLabel });
+  logger.info('Getting schedule options', { season: seasonLabel, division: divisionLabel, seasonId });
 
   const browser = await launchBrowser();
 
   try {
     const page = await createPage(browser);
 
-    // Navigate ONCE to the schedule page and get initial seasons
-    const seasons = await getSeasonOptions(page);
+    // Navigate ONCE to the schedule page with optional season pre-selected
+    const seasons = await getSeasonOptions(page, seasonId);
     logger.debug(`Retrieved ${seasons.length} seasons`);
 
     let divisions: SelectOption[] = [];
