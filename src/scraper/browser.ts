@@ -98,9 +98,28 @@ export async function createPage(browser: Browser) {
  */
 export async function closeBrowser(browser: Browser): Promise<void> {
   try {
-    await browser.close();
+    // Close all pages first for faster cleanup
+    const pages = await browser.pages();
+    await Promise.all(pages.map(page => page.close().catch(() => {})));
+
+    // Then close browser with timeout to prevent hanging
+    await Promise.race([
+      browser.close(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Browser close timeout')), 3000))
+    ]);
+
     logger.info('Browser closed successfully');
   } catch (error) {
-    logger.warn('Error closing browser:', error);
+    logger.warn('Error closing browser, force killing:', error);
+    // Force process to clean up if close failed
+    try {
+      const process = browser.process();
+      if (process && !process.killed) {
+        process.kill('SIGKILL');
+        logger.debug('Browser process killed with SIGKILL');
+      }
+    } catch (killError) {
+      logger.debug('Could not kill browser process:', killError);
+    }
   }
 }
