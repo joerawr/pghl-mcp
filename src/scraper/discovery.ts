@@ -40,84 +40,61 @@ export async function getScheduleOptions(
   try {
     const page = await createPage(browser);
 
-    // Always get seasons
+    // Navigate ONCE to the schedule page and get initial seasons
     const seasons = await getSeasonOptions(page);
     logger.debug(`Retrieved ${seasons.length} seasons`);
 
-    // Resolve season label to value
-    let seasonValue: string | undefined;
+    let divisions: SelectOption[] = [];
+    let teams: SelectOption[] = [];
+
+    // If season requested, select it and get divisions
     if (seasonLabel) {
       const seasonOption = findOptionByLabel(seasons, seasonLabel);
       if (seasonOption) {
-        seasonValue = seasonOption.value;
-        logger.debug(`Resolved season label "${seasonLabel}" to value "${seasonValue}"`);
+        logger.debug(`Resolved season label "${seasonLabel}" to value "${seasonOption.value}"`);
 
         // Mark as selected
         seasons.forEach((s) => {
-          s.selected = s.value === seasonValue;
+          s.selected = s.value === seasonOption.value;
         });
+
+        // Get divisions WITHOUT reloading page
+        divisions = await getDivisionOptions(page, seasonOption.value);
+        logger.debug(`Retrieved ${divisions.length} divisions`);
+
+        // If division requested, select it and get teams
+        if (divisionLabel && divisions.length > 0) {
+          const divisionOption = findOptionByLabel(divisions, divisionLabel);
+          if (divisionOption) {
+            logger.debug(`Resolved division label "${divisionLabel}" to value "${divisionOption.value}"`);
+
+            // Mark as selected
+            divisions.forEach((d) => {
+              d.selected = d.value === divisionOption.value;
+            });
+
+            // Get teams WITHOUT reloading page
+            teams = await getTeamOptions(page, seasonOption.value, divisionOption.value);
+            logger.debug(`Retrieved ${teams.length} teams`);
+          } else {
+            logger.warn(`Division label "${divisionLabel}" not found in available divisions`);
+          }
+        }
       } else {
         logger.warn(`Season label "${seasonLabel}" not found in available seasons`);
-      }
-    }
-
-    // Get divisions if season provided
-    let divisions: SelectOption[] = [];
-    if (seasonValue) {
-      logger.debug(`Getting divisions for season: ${seasonValue}`);
-      divisions = await getDivisionOptions(page, seasonValue);
-      logger.debug(`Retrieved ${divisions.length} divisions`);
-
-      // Resolve division label to value
-      let divisionValue: string | undefined;
-      if (divisionLabel) {
-        const divisionOption = findOptionByLabel(divisions, divisionLabel);
-        if (divisionOption) {
-          divisionValue = divisionOption.value;
-          logger.debug(`Resolved division label "${divisionLabel}" to value "${divisionValue}"`);
-
-          // Mark as selected
-          divisions.forEach((d) => {
-            d.selected = d.value === divisionValue;
-          });
-        } else {
-          logger.warn(`Division label "${divisionLabel}" not found in available divisions`);
-        }
-      }
-
-      // Get teams if division resolved
-      let teams: SelectOption[] = [];
-      if (divisionValue) {
-        logger.debug(`Getting teams for season: ${seasonValue}, division: ${divisionValue}`);
-        teams = await getTeamOptions(page, seasonValue, divisionValue);
-        logger.debug(`Retrieved ${teams.length} teams`);
-
-        const result: ScheduleOptions = {
-          seasons,
-          divisions,
-          teams,
-        };
-
-        logger.info('Schedule options retrieved successfully', {
-          seasonsCount: seasons.length,
-          divisionsCount: divisions.length,
-          teamsCount: teams.length,
-        });
-
-        return result;
       }
     }
 
     const result: ScheduleOptions = {
       seasons,
       divisions,
-      teams: [],
+      teams,
     };
 
     logger.info('Schedule options retrieved successfully', {
       seasonsCount: seasons.length,
       divisionsCount: divisions.length,
-      teamsCount: 0,
+      teamsCount: teams.length,
     });
 
     return result;

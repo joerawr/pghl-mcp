@@ -198,14 +198,13 @@ export async function getSeasonOptions(page: Page): Promise<SelectOption[]> {
 
 /**
  * Get division options for a selected season
+ * Assumes page is already loaded - does NOT reload
  */
 export async function getDivisionOptions(
   page: Page,
   seasonId: string
 ): Promise<SelectOption[]> {
-  await navigateToSchedulePage(page);
-
-  // Select the season first
+  // Select the season first (on already-loaded page)
   const seasonSelectors = [
     'select[ng-model*="season"]',
     'select[name="season"]',
@@ -221,7 +220,7 @@ export async function getDivisionOptions(
     }
   }
 
-  // Now extract division options
+  // Now extract division options (after AJAX update)
   const divisionSelectors = [
     'select[ng-model*="division"]',
     'select[name="division"]',
@@ -250,31 +249,14 @@ export async function getDivisionOptions(
 
 /**
  * Get team options for a selected season and division
+ * Assumes page is already loaded and season is already selected
  */
 export async function getTeamOptions(
   page: Page,
   seasonId: string,
   divisionId: string
 ): Promise<SelectOption[]> {
-  await navigateToSchedulePage(page);
-
-  // Select season
-  const seasonSelectors = [
-    'select[ng-model*="season"]',
-    'select[name="season"]',
-    'select#season',
-  ];
-
-  for (const selector of seasonSelectors) {
-    try {
-      await selectDropdownOption(page, selector, seasonId, 'season');
-      break;
-    } catch (error) {
-      continue;
-    }
-  }
-
-  // Select division
+  // Select division (season should already be selected)
   const divisionSelectors = [
     'select[ng-model*="division"]',
     'select[name="division"]',
@@ -290,7 +272,7 @@ export async function getTeamOptions(
     }
   }
 
-  // Extract team options
+  // Extract team options (after AJAX update)
   const teamSelectors = [
     'select[ng-model*="team"]',
     'select[name="team"]',
