@@ -21,7 +21,7 @@ function delay(ms: number): Promise<void> {
 /**
  * Wait for Angular to be ready by checking for ng-scope class
  */
-async function waitForAngular(page: Page): Promise<void> {
+async function waitForAngular(page: Page, requireSelects: boolean = true): Promise<void> {
   try {
     // Log current URL for debugging
     const currentUrl = page.url();
@@ -38,15 +38,20 @@ async function waitForAngular(page: Page): Promise<void> {
     // Additional wait for Angular to finish rendering
     await delay(3000);
 
-    // Try to wait for any select element to appear (common on schedule page)
-    try {
-      await page.waitForSelector('select', { timeout: 10000 });
-      logger.debug('Found select element');
-    } catch {
-      // If no select found, dump page HTML for debugging
-      const bodyHTML = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
-      logger.error('No select elements found after Angular load. Page HTML sample:', bodyHTML);
-      throw new Error('No select elements found - page may not have loaded correctly');
+    // Only check for select elements if required (not needed when bypassing via URL params)
+    if (requireSelects) {
+      // Try to wait for any select element to appear (common on schedule page)
+      try {
+        await page.waitForSelector('select', { timeout: 10000 });
+        logger.debug('Found select element');
+      } catch {
+        // If no select found, dump page HTML for debugging
+        const bodyHTML = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+        logger.error('No select elements found after Angular load. Page HTML sample:', bodyHTML);
+        throw new Error('No select elements found - page may not have loaded correctly');
+      }
+    } else {
+      logger.debug('Skipping select element check (using URL parameters)');
     }
 
     logger.debug('Angular appears to be ready');
@@ -60,7 +65,7 @@ async function waitForAngular(page: Page): Promise<void> {
  * Navigate to PGHL schedule page and wait for Angular to render
  *
  * @param page - Puppeteer page instance
- * @param seasonId - Optional season ID to pre-select (e.g., "number:9486")
+ * @param seasonId - Optional season ID to pre-select (e.g., "9486")
  */
 export async function navigateToSchedulePage(page: Page, seasonId?: string): Promise<void> {
   let url = `${PGHL_SCHEDULE_URL}/stats#/${PGHL_LEAGUE_ID}/schedule`;
@@ -82,7 +87,8 @@ export async function navigateToSchedulePage(page: Page, seasonId?: string): Pro
     logger.debug('Page navigation completed, waiting for Angular...');
 
     // Wait for Angular to render
-    await waitForAngular(page);
+    // Don't require select elements if we're using URL parameter (seasonId provided)
+    await waitForAngular(page, !seasonId);
 
     logger.debug('PGHL schedule page loaded');
   } catch (error) {
