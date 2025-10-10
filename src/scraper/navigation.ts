@@ -23,8 +23,17 @@ function delay(ms: number): Promise<void> {
  */
 async function waitForAngular(page: Page): Promise<void> {
   try {
+    // Log current URL for debugging
+    const currentUrl = page.url();
+    logger.debug(`Current page URL: ${currentUrl}`);
+
+    // Get page title for debugging
+    const title = await page.title();
+    logger.debug(`Page title: ${title}`);
+
     // Wait for Angular to bootstrap (ng-scope is added when Angular initializes)
     await page.waitForSelector('[ng-app]', { timeout: 15000 });
+    logger.debug('Found [ng-app] element');
 
     // Additional wait for Angular to finish rendering
     await delay(3000);
@@ -32,14 +41,18 @@ async function waitForAngular(page: Page): Promise<void> {
     // Try to wait for any select element to appear (common on schedule page)
     try {
       await page.waitForSelector('select', { timeout: 10000 });
+      logger.debug('Found select element');
     } catch {
-      // If no select found, that's okay - continue anyway
-      logger.debug('No select elements found, continuing...');
+      // If no select found, dump page HTML for debugging
+      const bodyHTML = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+      logger.error('No select elements found after Angular load. Page HTML sample:', bodyHTML);
+      throw new Error('No select elements found - page may not have loaded correctly');
     }
 
     logger.debug('Angular appears to be ready');
   } catch (error) {
-    logger.warn('Angular readiness check failed, continuing anyway:', error);
+    logger.error('Angular readiness check failed:', error);
+    throw error;
   }
 }
 
@@ -58,12 +71,24 @@ export async function navigateToSchedulePage(page: Page): Promise<void> {
       timeout: 30000,
     });
 
+    logger.debug('Page navigation completed, waiting for Angular...');
+
     // Wait for Angular to render
     await waitForAngular(page);
 
     logger.debug('PGHL schedule page loaded');
   } catch (error) {
     logger.error('Failed to navigate to PGHL schedule page:', error);
+
+    // Try to get page content for debugging
+    try {
+      const content = await page.content();
+      logger.error('Page content length:', content.length);
+      logger.error('Page content sample:', content.substring(0, 1000));
+    } catch (contentError) {
+      logger.error('Could not retrieve page content:', contentError);
+    }
+
     throw new WebsiteUnavailableError(url, error instanceof Error ? error : undefined);
   }
 }
