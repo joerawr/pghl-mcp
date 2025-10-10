@@ -9,6 +9,7 @@ import { getScheduleOptions } from '../scraper/discovery.js';
 import { logger } from '../utils/logger.js';
 import { normalizeTeamName } from '../utils/date-parser.js';
 import { TeamNotFoundError } from '../utils/errors.js';
+import { getSeasonId, getSeasonLabel } from '../utils/season-mapper.js';
 
 /**
  * Tool definition for MCP protocol
@@ -24,7 +25,7 @@ export const getScheduleTool = {
         season: {
           type: 'string',
           description:
-            "Season in YYYY-YY format (e.g., '2025-26'). Use list_schedule_options to discover available seasons.",
+            "Season in flexible format: '2025-26', '2025/26', '2025-2026', or full format '2025-26 12u-19u AA'. Automatically maps to correct season based on division tier.",
         },
         division: {
           type: 'string',
@@ -62,22 +63,15 @@ export const getScheduleTool = {
 
       const { season, division, scope = 'current', team } = validatedArgs;
 
-      // Discover season and division IDs
-      const allSeasons = await getScheduleOptions();
+      // Map season format to season ID using division tier
+      // Supports formats: "2025-26", "2025/26", "2025-26 12u-19u AA", etc.
+      const seasonId = getSeasonId(season, division);
+      const seasonLabel = getSeasonLabel(season, division);
 
-      // Find season by matching label (e.g., "2025-26 12u-19u AA")
-      const seasonOption = allSeasons.seasons.find(
-        (s) => s.label.toLowerCase().includes(season.toLowerCase())
-      );
-
-      if (!seasonOption) {
-        throw new Error(
-          `Season "${season}" not found. Available seasons:\n${allSeasons.seasons.map((s) => `- ${s.label}`).join('\n')}`
-        );
-      }
+      logger.info(`Resolved season "${season}" to ID: ${seasonId}, label: ${seasonLabel}`);
 
       // Get divisions for this season (pass label, not value)
-      const divisionOptions = await getScheduleOptions(seasonOption.label);
+      const divisionOptions = await getScheduleOptions(seasonLabel);
       const divisionOption = divisionOptions.divisions.find(
         (d) => d.label.toLowerCase() === division.toLowerCase()
       );
@@ -90,14 +84,14 @@ export const getScheduleTool = {
       }
 
       logger.info(`Fetching ${scope} schedule for division`, {
-        season: seasonOption.label,
+        season: seasonLabel,
         division: divisionOption.label,
         scope,
       });
 
       // Scrape the schedule for the entire division (no team selection)
       const games = await scrapeSchedule(
-        seasonOption.value,
+        seasonId,
         divisionOption.value,
         null, // No team selection - get all games
         season,
@@ -128,7 +122,7 @@ export const getScheduleTool = {
             type: 'text',
             text: JSON.stringify(
               {
-                season: seasonOption.label,
+                season: seasonLabel,
                 division: divisionOption.label,
                 scope,
                 ...(teamFilter && { teamFilter }),
