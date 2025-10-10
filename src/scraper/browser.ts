@@ -11,23 +11,19 @@ import { logger } from '../utils/logger.js';
  * Local: Uses system Chrome via CHROME_EXECUTABLE_PATH
  * Vercel: Uses @sparticuz/chromium
  */
-export function getBrowserConfig() {
+export async function getBrowserConfig() {
   const isVercel = !!process.env.VERCEL;
 
   if (isVercel) {
-    // Vercel serverless configuration
+    // Vercel serverless configuration - use @sparticuz/chromium
     logger.debug('Configuring browser for Vercel environment');
+
+    // Dynamically import chromium for Vercel
+    const chromium = await import('@sparticuz/chromium');
+
     return {
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-      ],
-      executablePath: process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+      args: chromium.default.args,
+      executablePath: await chromium.default.executablePath(),
       headless: true,
     };
   } else {
@@ -51,7 +47,7 @@ export function getBrowserConfig() {
  * Launch browser instance with appropriate configuration
  */
 export async function launchBrowser(): Promise<Browser> {
-  const config = getBrowserConfig();
+  const config = await getBrowserConfig();
 
   logger.info('Launching browser...');
   logger.debug('Browser config:', JSON.stringify(config, null, 2));
