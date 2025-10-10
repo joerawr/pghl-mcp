@@ -7,7 +7,7 @@ import { logger } from './logger.js';
 
 /**
  * Known season ID mappings from PGHL website
- * Values are just the numeric IDs (for URL parameters)
+ * Values use numeric IDs (dropdowns expect "number:ID" format, but we store just ID)
  * Updated: 2025-10-10
  */
 const SEASON_ID_MAP: Record<string, string> = {

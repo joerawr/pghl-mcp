@@ -229,25 +229,63 @@ export async function scrapeSchedule(
   try {
     const page = await createPage(browser);
 
-    // Navigate to schedule page with season AND division pre-selected via URL parameters
-    // This bypasses ALL dropdown selection, which is more reliable on serverless
-    await navigateToSchedulePage(page, seasonId, divisionId);
+    // Navigate to schedule page WITHOUT URL parameters
+    // URL parameters don't work reliably on Vercel serverless - Angular doesn't render
+    await navigateToSchedulePage(page);
 
-    // No need to select season or division from dropdowns - already selected via URL parameters
-    logger.debug('Season and division pre-selected via URL, skipping dropdown selection');
+    logger.info('Selecting season and division via dropdowns for Vercel compatibility');
 
-    // Wait for any AJAX calls triggered by Angular to complete
-    // The URL parameters trigger Angular to load data, but we need to wait for it
-    logger.debug('Waiting for Angular AJAX to populate schedule...');
-    try {
-      await page.waitForNetworkIdle({ timeout: 10000 });
-      logger.debug('Network idle - Angular should have loaded data');
-    } catch (error) {
-      logger.warn('Network did not go idle, continuing anyway');
+    // Select season from dropdown
+    const seasonSelectors = [
+      'select[ng-model*="season"]',
+      'select[name="season"]',
+      'select#season',
+    ];
+
+    let seasonSelected = false;
+    for (const selector of seasonSelectors) {
+      try {
+        // The season value format from the dropdown is "number:XXXX"
+        await selectDropdownOption(page, selector, `number:${seasonId}`, 'season');
+        seasonSelected = true;
+        logger.info(`Selected season via dropdown: number:${seasonId}`);
+        break;
+      } catch (error) {
+        logger.debug(`Failed to select season with selector ${selector}:`, error);
+        continue;
+      }
     }
 
-    // Team selection: Only needed if filtering to specific team
-    // When teamId is null, URL parameters default to "All Teams" automatically
+    if (!seasonSelected) {
+      throw new Error('Could not select season from dropdown');
+    }
+
+    // Select division from dropdown
+    const divisionSelectors = [
+      'select[ng-model*="division"]',
+      'select[name="division"]',
+      'select#division',
+    ];
+
+    let divisionSelected = false;
+    for (const selector of divisionSelectors) {
+      try {
+        // The division value format from the dropdown is "number:XXXX"
+        await selectDropdownOption(page, selector, `number:${divisionId}`, 'division');
+        divisionSelected = true;
+        logger.info(`Selected division via dropdown: number:${divisionId}`);
+        break;
+      } catch (error) {
+        logger.debug(`Failed to select division with selector ${selector}:`, error);
+        continue;
+      }
+    }
+
+    if (!divisionSelected) {
+      throw new Error('Could not select division from dropdown');
+    }
+
+    // Team selection: Only if filtering to specific team
     if (teamId) {
       logger.debug(`Selecting specific team: ${teamId}`);
       const teamSelectors = [
@@ -258,17 +296,16 @@ export async function scrapeSchedule(
 
       for (const selector of teamSelectors) {
         try {
-          await selectDropdownOption(page, selector, teamId, 'team');
+          await selectDropdownOption(page, selector, `number:${teamId}`, 'team');
           break;
         } catch (error) {
-          // If team selection fails, continue anyway - URL params may have handled it
           logger.warn(`Could not select team via dropdown: ${error}`);
           continue;
         }
       }
     } else {
-      // No teamId provided - URL parameters will default to "All Teams"
-      logger.debug('No team filter - showing all teams in division (via URL default)');
+      // No team filter - defaults to "All Teams"
+      logger.debug('No team filter - showing all teams in division');
     }
 
     // Select scope: CURRENT SCHEDULE or FULL SCHEDULE
