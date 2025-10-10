@@ -57,7 +57,18 @@ async function extractScheduleTable(page: Page): Promise<string[][]> {
       bodyRows.forEach((row) => {
         const cells = row.querySelectorAll('td');
         if (cells.length > 0) {
-          rows.push(Array.from(cells).map((cell) => cell.textContent?.trim() || ''));
+          rows.push(
+            Array.from(cells).map((cell) => {
+              const text = cell.textContent?.trim() || '';
+
+              // Clean up team names that have duplicated short codes
+              // Pattern: "Team Name 12u AA" followed by "TeamCode12AA"
+              // Match: "LA Lions 12u AALions12AA" -> "LA Lions 12u AA"
+              const cleanedText = text.replace(/^(.*?\d+u\s+[A]+)([A-Za-z0-9]+)$/, '$1');
+
+              return cleanedText;
+            })
+          );
         }
       });
 
@@ -70,6 +81,38 @@ async function extractScheduleTable(page: Page): Promise<string[][]> {
     logger.error('Failed to extract schedule table:', error);
     throw new Error('Could not find schedule table on page');
   }
+}
+
+/**
+ * Clean team name by removing game description and duplicate codes
+ * Patterns to remove:
+ * - Full game description: "Team1 vs Team2 on Date TimeTeamCode"
+ * - Duplicate short code: "Team Name 12u AATeamCode12AA"
+ */
+function cleanTeamName(rawText: string): string {
+  let text = rawText.trim();
+
+  // Pattern 1: Remove game description (everything from " vs " onwards)
+  // "LA Lions 12u AA vs Anaheim Lady Ducks 12u AA on 10/18/25 11:00 AMLA Lions 12u AA"
+  // -> "LA Lions 12u AA"
+  if (text.includes(' vs ')) {
+    const matchLast = text.match(/([^]+?)\s*$/);
+    if (matchLast) {
+      // The team name is likely the last occurrence before the short code
+      // Pattern: everything before " vs " OR the very last team name after the date/time
+      const parts = text.split(' vs ');
+      if (parts.length > 0) {
+        // Try to extract the first team name (before " vs ")
+        text = parts[0].trim();
+      }
+    }
+  }
+
+  // Pattern 2: Remove duplicate short code at the end
+  // "LA Lions 12u AALions12AA" -> "LA Lions 12u AA"
+  text = text.replace(/^(.*?\d+u\s+[A]+)[A-Za-z0-9]+$/, '$1');
+
+  return text.trim();
 }
 
 /**
@@ -104,10 +147,14 @@ function parseScheduleTable(tableData: string[][], division: string, season: str
     try {
       const dateStr = row[dateIdx] || '';
       const timeStr = row[timeIdx] || '';
-      const home = row[homeIdx] || '';
-      const away = row[awayIdx] || '';
+      const homeRaw = row[homeIdx] || '';
+      const awayRaw = row[awayIdx] || '';
       const venue = venueIdx >= 0 ? row[venueIdx] || '' : '';
       const status = statusIdx >= 0 ? row[statusIdx] || '' : '';
+
+      // Clean team names (remove game descriptions and duplicate codes)
+      const home = cleanTeamName(homeRaw);
+      const away = cleanTeamName(awayRaw);
 
       // Skip empty rows or header rows
       if (!dateStr || !home || !away) continue;
