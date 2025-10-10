@@ -157,23 +157,25 @@ function parseScheduleTable(tableData: string[][], division: string, season: str
 }
 
 /**
- * Scrape schedule for a specific team
+ * Scrape schedule for a division (all teams or specific team)
  *
  * @param seasonId - Season ID (e.g., "number:9486")
  * @param divisionId - Division ID (e.g., "number:42897")
- * @param teamId - Team ID (e.g., "number:586889")
+ * @param teamId - Team ID (e.g., "number:586889") or null for all teams
  * @param season - Season string for date parsing (e.g., "2025-26")
  * @param division - Division string for game metadata (e.g., "12u AA")
+ * @param scope - 'current' for upcoming games, 'full' for all games (default: 'current')
  * @returns Array of Game objects
  */
 export async function scrapeSchedule(
   seasonId: string,
   divisionId: string,
-  teamId: string,
+  teamId: string | null,
   season: string,
-  division: string
+  division: string,
+  scope: 'current' | 'full' = 'current'
 ): Promise<Game[]> {
-  logger.info('Scraping PGHL schedule', { seasonId, divisionId, teamId });
+  logger.info('Scraping PGHL schedule', { seasonId, divisionId, teamId, scope });
 
   const browser = await launchBrowser();
 
@@ -215,23 +217,98 @@ export async function scrapeSchedule(
       }
     }
 
-    // Select team
-    const teamSelectors = [
-      'select[ng-model*="team"]',
-      'select[name="team"]',
-      'select#team',
-    ];
+    // If teamId provided, select specific team
+    // Otherwise, select "All Teams" to get division-wide schedule
+    if (teamId) {
+      const teamSelectors = [
+        'select[ng-model*="team"]',
+        'select[name="team"]',
+        'select#team',
+      ];
 
-    for (const selector of teamSelectors) {
-      try {
-        await selectDropdownOption(page, selector, teamId, 'team');
-        break;
-      } catch (error) {
-        continue;
+      for (const selector of teamSelectors) {
+        try {
+          await selectDropdownOption(page, selector, teamId, 'team');
+          break;
+        } catch (error) {
+          continue;
+        }
+      }
+    } else {
+      // Select "All Teams" option for division-wide schedule
+      logger.debug('Selecting "All Teams" for division-wide schedule');
+      const teamSelectors = [
+        'select[ng-model*="team"]',
+        'select[name="team"]',
+        'select#team',
+      ];
+
+      for (const selector of teamSelectors) {
+        try {
+          // Find "All Teams" option (usually first option or value "0")
+          const allTeamsValue = await page.evaluate((sel) => {
+            const select = document.querySelector(sel) as HTMLSelectElement;
+            if (!select) return null;
+
+            // Look for "All Teams" option
+            const allOption = Array.from(select.options).find(
+              (opt) => opt.text.toLowerCase().includes('all') || opt.value === '0' || opt.value === ''
+            );
+
+            return allOption ? allOption.value : select.options[0]?.value;
+          }, selector);
+
+          if (allTeamsValue !== null) {
+            await page.select(selector, allTeamsValue);
+            logger.debug(`Selected "All Teams" with value: ${allTeamsValue}`);
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
       }
     }
 
-    // Wait for schedule table to populate after team selection
+    // Select scope: CURRENT SCHEDULE or FULL SCHEDULE
+    // Look for a link, button, or tab that switches between current and full
+    if (scope === 'current') {
+      logger.debug('Looking for "Current Schedule" option');
+      try {
+        // Common patterns for current schedule links/buttons
+        await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a, button, [role="tab"]'));
+          const currentLink = links.find((el) =>
+            el.textContent?.toLowerCase().includes('current')
+          ) as HTMLElement;
+
+          if (currentLink) {
+            currentLink.click();
+          }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        logger.debug('Could not find "Current Schedule" link, using default view');
+      }
+    } else {
+      logger.debug('Looking for "Full Schedule" option');
+      try {
+        await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a, button, [role="tab"]'));
+          const fullLink = links.find((el) =>
+            el.textContent?.toLowerCase().includes('full')
+          ) as HTMLElement;
+
+          if (fullLink) {
+            fullLink.click();
+          }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        logger.debug('Could not find "Full Schedule" link, using default view');
+      }
+    }
+
+    // Wait for schedule table to populate
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Extract schedule table

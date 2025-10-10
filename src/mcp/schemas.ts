@@ -11,7 +11,8 @@ import { z } from 'zod';
 export const GetScheduleArgsSchema = z.object({
   season: z.string().describe('Season identifier in YYYY-YY format (e.g., "2025-26")'),
   division: z.string().describe('Division identifier (e.g., "12u AA", "14u AAA")'),
-  team: z.string().describe('Full team name (e.g., "Las Vegas Storm 12u AA")'),
+  scope: z.enum(['current', 'full']).optional().default('current').describe('Scope of schedule: "current" for upcoming games only, "full" for all games past and future. Default: "current"'),
+  team: z.string().optional().describe('Optional: Filter to specific team name. If omitted, returns all games in the division.'),
   date: z.string().optional().describe('Optional date filter in YYYY-MM-DD format'),
 });
 

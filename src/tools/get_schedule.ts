@@ -17,7 +17,7 @@ export const getScheduleTool = {
   definition: {
     name: 'get_schedule',
     description:
-      'Get the full game schedule for a PGHL team. Returns all games (past and future) for the specified team, including dates, opponents, venues, and game status. Use list_schedule_options first to discover available seasons, divisions, and teams.',
+      'Get game schedule for a PGHL division. Returns games for ALL teams in the division by default (faster, recommended). Optionally filter to a specific team. Use "current" scope for upcoming games only, or "full" for complete season history.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -31,13 +31,20 @@ export const getScheduleTool = {
           description:
             "Division name (e.g., '12u AA', '14u AA'). Use list_schedule_options with season to discover available divisions.",
         },
+        scope: {
+          type: 'string',
+          enum: ['current', 'full'],
+          description:
+            "Scope of schedule: 'current' for upcoming games only (default), 'full' for all games past and future.",
+          default: 'current',
+        },
         team: {
           type: 'string',
           description:
-            "Team name (e.g., 'Las Vegas Storm 12u AA'). Use list_schedule_options with season and division to discover available teams. Partial matches supported.",
+            "Optional: Filter to specific team. If omitted, returns ALL games in the division (recommended - let the agent filter). Partial matches supported.",
         },
       },
-      required: ['season', 'division', 'team'],
+      required: ['season', 'division'],
     },
   },
 
@@ -53,13 +60,9 @@ export const getScheduleTool = {
 
       logger.debug('Tool arguments validated:', validatedArgs);
 
-      const { season, division, team } = validatedArgs;
+      const { season, division, scope = 'current', team } = validatedArgs;
 
-      // First, discover available options to get IDs
-      logger.debug('Discovering team options to find team ID');
-
-      // Convert season format: "2025-26" → try to find matching option
-      // We need to call discovery to get the actual season ID
+      // Discover season and division IDs
       const allSeasons = await getScheduleOptions();
 
       // Find season by matching label (e.g., "2025-26 12u-19u AA")
@@ -86,36 +89,37 @@ export const getScheduleTool = {
         );
       }
 
-      // Get teams for this division (pass labels, not values)
-      const teamOptions = await getScheduleOptions(seasonOption.label, divisionOption.label);
-
-      // Find team by name (support partial matching)
-      const normalizedTeamQuery = normalizeTeamName(team);
-      const teamOption = teamOptions.teams.find(
-        (t) => normalizeTeamName(t.label).includes(normalizedTeamQuery)
-      ) || teamOptions.teams.find(
-        (t) => normalizeTeamName(t.label).includes(team.toLowerCase())
-      );
-
-      if (!teamOption) {
-        const availableTeams = teamOptions.teams.map((t) => t.label);
-        throw new TeamNotFoundError(team, division, season, availableTeams);
-      }
-
-      logger.info(`Found team: ${teamOption.label}`, {
-        seasonId: seasonOption.value,
-        divisionId: divisionOption.value,
-        teamId: teamOption.value,
+      logger.info(`Fetching ${scope} schedule for division`, {
+        season: seasonOption.label,
+        division: divisionOption.label,
+        scope,
       });
 
-      // Scrape the schedule
+      // Scrape the schedule for the entire division (no team selection)
       const games = await scrapeSchedule(
         seasonOption.value,
         divisionOption.value,
-        teamOption.value,
+        null, // No team selection - get all games
         season,
-        division
+        division,
+        scope
       );
+
+      // Filter to specific team if requested (let agent do this if not specified)
+      let filteredGames = games;
+      let teamFilter: string | undefined;
+
+      if (team) {
+        const normalizedTeamQuery = normalizeTeamName(team);
+        filteredGames = games.filter((game) => {
+          const homeMatch = normalizeTeamName(game.home).includes(normalizedTeamQuery);
+          const awayMatch = normalizeTeamName(game.away).includes(normalizedTeamQuery);
+          return homeMatch || awayMatch;
+        });
+
+        teamFilter = team;
+        logger.info(`Filtered to ${filteredGames.length} games for team: ${team}`);
+      }
 
       // Format response
       const response = {
@@ -124,11 +128,13 @@ export const getScheduleTool = {
             type: 'text',
             text: JSON.stringify(
               {
-                team: teamOption.label,
                 season: seasonOption.label,
                 division: divisionOption.label,
-                games,
-                totalGames: games.length,
+                scope,
+                ...(teamFilter && { teamFilter }),
+                games: filteredGames,
+                totalGames: filteredGames.length,
+                ...(teamFilter && { totalDivisionGames: games.length }),
               },
               null,
               2
@@ -138,8 +144,9 @@ export const getScheduleTool = {
       };
 
       logger.info('get_schedule completed successfully', {
-        team: teamOption.label,
-        gamesCount: games.length,
+        scope,
+        totalGames: games.length,
+        filteredGames: filteredGames.length,
       });
 
       return response;
