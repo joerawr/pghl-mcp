@@ -19,6 +19,31 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
+ * Wait for Angular to be ready by checking for ng-scope class
+ */
+async function waitForAngular(page: Page): Promise<void> {
+  try {
+    // Wait for Angular to bootstrap (ng-scope is added when Angular initializes)
+    await page.waitForSelector('[ng-app]', { timeout: 15000 });
+
+    // Additional wait for Angular to finish rendering
+    await delay(3000);
+
+    // Try to wait for any select element to appear (common on schedule page)
+    try {
+      await page.waitForSelector('select', { timeout: 10000 });
+    } catch {
+      // If no select found, that's okay - continue anyway
+      logger.debug('No select elements found, continuing...');
+    }
+
+    logger.debug('Angular appears to be ready');
+  } catch (error) {
+    logger.warn('Angular readiness check failed, continuing anyway:', error);
+  }
+}
+
+/**
  * Navigate to PGHL schedule page and wait for Angular to render
  */
 export async function navigateToSchedulePage(page: Page): Promise<void> {
@@ -27,13 +52,14 @@ export async function navigateToSchedulePage(page: Page): Promise<void> {
   logger.info(`Navigating to PGHL schedule page: ${url}`);
 
   try {
+    // Use domcontentloaded instead of networkidle0 for faster initial load
     await page.goto(url, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
 
     // Wait for Angular to render
-    await delay(2000);
+    await waitForAngular(page);
 
     logger.debug('PGHL schedule page loaded');
   } catch (error) {
@@ -54,8 +80,11 @@ export async function extractSelectOptions(
   logger.debug(`Extracting options from: ${selector}`);
 
   try {
-    // Wait for the selector to appear
-    await page.waitForSelector(selector, { timeout: 10000 });
+    // Wait for the selector to appear (increased timeout for Vercel)
+    await page.waitForSelector(selector, { timeout: 20000 });
+
+    // Give Angular extra time to populate the dropdown
+    await delay(1000);
 
     // Extract options from select element
     const options = await page.$$eval(selector + ' option', (elements) => {

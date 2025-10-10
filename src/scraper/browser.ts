@@ -85,8 +85,8 @@ export async function createPage(browser: Browser) {
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   );
 
-  // Set default timeout
-  page.setDefaultTimeout(30000); // 30 seconds
+  // Set default timeout (reduced for Vercel serverless limits)
+  page.setDefaultTimeout(25000); // 25 seconds
 
   logger.debug('Created new page with standard configuration');
 
