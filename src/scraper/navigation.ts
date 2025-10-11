@@ -39,6 +39,20 @@ async function waitForAngular(page: Page, requireSelects: boolean = true): Promi
     logger.debug('Waiting for Angular to render DOM...');
     await delay(5000);
 
+    // Verify Angular's $http pending + router state
+    const angularDebug = await page.evaluate(() => {
+      const hasAngular = !!(window as any).angular;
+      let pending = 0;
+      let hash = location.hash;
+      try {
+        const $inj = (window as any).angular.element(document.body).injector();
+        const $http = $inj && $inj.get ? $inj.get('$http') : null;
+        pending = $http ? $http.pendingRequests.length : -1;
+      } catch {}
+      return { hasAngular, hash, pending };
+    });
+    logger.info('[angular]', JSON.stringify(angularDebug));
+
     // Only check for select elements if required (not needed when bypassing via URL params)
     if (requireSelects) {
       // Try to wait for any select element to appear (common on schedule page)
@@ -115,6 +129,19 @@ export async function navigateToSchedulePage(
     // Don't require select elements if we're using URL parameters
     const usingUrlParams = !!(seasonId || divisionId);
     await waitForAngular(page, !usingUrlParams);
+
+    // After Angular is ready, race between selector and network idle
+    // This helps identify whether data is loading or page is stuck
+    logger.debug('Racing between select option appearance and network idle...');
+    try {
+      await Promise.race([
+        page.waitForSelector('select option', { timeout: 15000 }),
+        page.waitForNetworkIdle({ idleTime: 1500, timeout: 15000 }),
+      ]);
+      logger.debug('Race complete - either selects appeared or network went idle');
+    } catch (raceError) {
+      logger.warn('Race condition timeout - page may be stuck:', raceError);
+    }
 
     logger.debug('PGHL schedule page loaded');
   } catch (error) {

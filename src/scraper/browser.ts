@@ -22,9 +22,16 @@ export async function getBrowserConfig() {
     const chromium = await import('@sparticuz/chromium');
 
     return {
-      args: chromium.default.args,
+      args: [
+        ...chromium.default.args,
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--use-gl=swiftshader',
+      ],
       executablePath: await chromium.default.executablePath(),
-      headless: true,
+      headless: 'new' as any, // Use new headless mode
     };
   } else {
     // Local development configuration
@@ -80,13 +87,53 @@ export async function createPage(browser: Browser) {
     height: 720,
   });
 
-  // Set user agent
+  // Modern Chrome user agent (Windows to avoid bot detection)
   await page.setUserAgent(
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
   );
+
+  // Hide webdriver detection
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+
+  // Set additional headers to appear more like a real browser
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'en-US,en;q=0.9',
+  });
 
   // Set default timeout (reduced for Vercel serverless limits)
   page.setDefaultTimeout(25000); // 25 seconds
+
+  // ==========================================
+  // DIAGNOSTIC LOGGING (Vercel production only)
+  // ==========================================
+  const isVercel = !!process.env.VERCEL;
+
+  if (isVercel) {
+    // Log network failures + 4xx/5xx bodies
+    page.on('requestfailed', (req) => {
+      logger.error('[reqfailed]', req.url(), req.failure()?.errorText);
+    });
+
+    page.on('response', async (res) => {
+      const url = res.url();
+      const status = res.status();
+      const type = res.request().resourceType(); // 'xhr','fetch','script', etc.
+
+      if (status >= 400 || type === 'xhr' || type === 'fetch') {
+        let body = '';
+        try {
+          body = await res.text();
+        } catch {}
+        logger.info(`[resp] ${status} ${type} ${url} ${body.slice(0, 400)}`);
+      }
+    });
+
+    // Log JavaScript errors + console
+    page.on('pageerror', (e) => logger.error('[pageerror]', e));
+    page.on('console', (m) => logger.info(`[console] ${m.type()} ${m.text()}`));
+  }
 
   logger.debug('Created new page with standard configuration');
 

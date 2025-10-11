@@ -229,61 +229,10 @@ export async function scrapeSchedule(
   try {
     const page = await createPage(browser);
 
-    // Navigate to schedule page WITHOUT URL parameters
-    // URL parameters don't work reliably on Vercel serverless - Angular doesn't render
-    await navigateToSchedulePage(page);
-
-    logger.info('Selecting season and division via dropdowns for Vercel compatibility');
-
-    // Select season from dropdown
-    const seasonSelectors = [
-      'select[ng-model*="season"]',
-      'select[name="season"]',
-      'select#season',
-    ];
-
-    let seasonSelected = false;
-    for (const selector of seasonSelectors) {
-      try {
-        // The season value format from the dropdown is "number:XXXX"
-        await selectDropdownOption(page, selector, `number:${seasonId}`, 'season');
-        seasonSelected = true;
-        logger.info(`Selected season via dropdown: number:${seasonId}`);
-        break;
-      } catch (error) {
-        logger.debug(`Failed to select season with selector ${selector}:`, error);
-        continue;
-      }
-    }
-
-    if (!seasonSelected) {
-      throw new Error('Could not select season from dropdown');
-    }
-
-    // Select division from dropdown
-    const divisionSelectors = [
-      'select[ng-model*="division"]',
-      'select[name="division"]',
-      'select#division',
-    ];
-
-    let divisionSelected = false;
-    for (const selector of divisionSelectors) {
-      try {
-        // The division value format from the dropdown is "number:XXXX"
-        await selectDropdownOption(page, selector, `number:${divisionId}`, 'division');
-        divisionSelected = true;
-        logger.info(`Selected division via dropdown: number:${divisionId}`);
-        break;
-      } catch (error) {
-        logger.debug(`Failed to select division with selector ${selector}:`, error);
-        continue;
-      }
-    }
-
-    if (!divisionSelected) {
-      throw new Error('Could not select division from dropdown');
-    }
+    // Navigate to schedule page WITH URL parameters
+    // Pass season_id and division_id to pre-fill Angular state
+    logger.info('Navigating with URL parameters for faster Angular initialization');
+    await navigateToSchedulePage(page, seasonId, divisionId);
 
     // Team selection: Only if filtering to specific team
     if (teamId) {
