@@ -29,9 +29,13 @@ export async function getBrowserConfig() {
         '--disable-gpu',
         '--disable-features=IsolateOrigins,site-per-process',
         '--use-gl=swiftshader',
+        '--disable-blink-features=AutomationControlled', // Hide automation
+        '--disable-web-security', // Allow cross-origin (may help with API calls)
+        '--disable-features=VizDisplayCompositor',
       ],
       executablePath: await chromium.default.executablePath(),
       headless: 'new' as any, // Use new headless mode
+      ignoreHTTPSErrors: true, // Ignore certificate errors
     };
   } else {
     // Local development configuration
@@ -92,14 +96,41 @@ export async function createPage(browser: Browser) {
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
   );
 
-  // Hide webdriver detection
+  // Comprehensive bot detection evasion
   await page.evaluateOnNewDocument(() => {
+    // Hide webdriver flag
     Object.defineProperty(navigator, 'webdriver', { get: () => false });
+
+    // Override the plugins to appear like a real browser
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => [1, 2, 3, 4, 5]
+    });
+
+    // Override languages to appear consistent
+    Object.defineProperty(navigator, 'languages', {
+      get: () => ['en-US', 'en']
+    });
+
+    // Add Chrome runtime
+    (window as any).chrome = { runtime: {} };
+
+    // Override permissions
+    const originalQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = (parameters: any) =>
+      parameters.name === 'notifications'
+        ? Promise.resolve({ state: 'denied' } as PermissionStatus)
+        : originalQuery(parameters);
   });
 
-  // Set additional headers to appear more like a real browser
+  // Set comprehensive headers to appear more like a real browser
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Upgrade-Insecure-Requests': '1',
   });
 
   // Set default timeout (reduced for Vercel serverless limits)
