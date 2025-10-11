@@ -12,7 +12,8 @@ import {
 import { logger } from './utils/logger.js';
 
 // Tool imports
-import { getScheduleTool } from './tools/get_schedule.js';
+import { getTeamScheduleTool } from './tools/get_team_schedule.js';
+import { getDivisionScheduleTool } from './tools/get_division_schedule.js';
 import { listScheduleOptionsTool } from './tools/list_schedule_options.js';
 
 /**
@@ -25,7 +26,8 @@ export function registerTools(server: Server) {
 
     return {
       tools: [
-        getScheduleTool.definition,
+        getTeamScheduleTool.definition,
+        getDivisionScheduleTool.definition,
         listScheduleOptionsTool.definition,
       ],
     };
@@ -40,8 +42,10 @@ export function registerTools(server: Server) {
 
     try {
       switch (name) {
-        case 'get_schedule':
-          return await getScheduleTool.handler(args);
+        case 'get_team_schedule':
+          return await getTeamScheduleTool.handler(args);
+        case 'get_division_schedule':
+          return await getDivisionScheduleTool.handler(args);
         case 'list_schedule_options':
           return await listScheduleOptionsTool.handler(args);
 
