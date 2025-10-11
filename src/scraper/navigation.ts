@@ -53,6 +53,29 @@ async function waitForAngular(page: Page, requireSelects: boolean = true): Promi
     });
     logger.info('[angular]', JSON.stringify(angularDebug));
 
+    // Wait for any pending Angular HTTP requests to complete
+    if (angularDebug.pending > 0) {
+      logger.info(`Waiting for ${angularDebug.pending} pending Angular HTTP requests to complete...`);
+      try {
+        // Poll until pending requests drop to 0 or timeout after 10 seconds
+        await page.waitForFunction(
+          () => {
+            try {
+              const $inj = (window as any).angular.element(document.body).injector();
+              const $http = $inj && $inj.get ? $inj.get('$http') : null;
+              return $http ? $http.pendingRequests.length === 0 : true;
+            } catch {
+              return true;
+            }
+          },
+          { timeout: 10000, polling: 200 }
+        );
+        logger.info('All Angular HTTP requests completed');
+      } catch (error) {
+        logger.warn('Timeout waiting for Angular HTTP requests to complete:', error);
+      }
+    }
+
     // Only check for select elements if required (not needed when bypassing via URL params)
     if (requireSelects) {
       // Try to wait for any select element to appear (common on schedule page)
@@ -142,6 +165,16 @@ export async function navigateToSchedulePage(
     } catch (raceError) {
       logger.warn('Race condition timeout - page may be stuck:', raceError);
     }
+
+    // Log what elements we can find after everything loads
+    const elementsFound = await page.evaluate(() => {
+      return {
+        selects: document.querySelectorAll('select').length,
+        tables: document.querySelectorAll('table').length,
+        tableRows: document.querySelectorAll('table tbody tr').length,
+      };
+    });
+    logger.info('[elements]', JSON.stringify(elementsFound));
 
     logger.debug('PGHL schedule page loaded');
   } catch (error) {
