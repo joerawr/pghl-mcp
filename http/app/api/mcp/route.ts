@@ -14,22 +14,12 @@
 
 import { createMcpHandler } from 'mcp-handler';
 import {
-  GetScheduleArgsSchema,
+  GetTeamScheduleArgsSchema,
+  GetDivisionScheduleArgsSchema,
   ListScheduleOptionsArgsSchema,
 } from '../../../../src/mcp/schemas.js';
-import { getScheduleTool } from '../../../../src/tools/get_schedule.js';
-import {
-  getTeamStatsTool,
-  GetTeamStatsArgsSchema,
-} from '../../../../src/tools/get_team_stats.js';
-import {
-  getPlayerStatsTool,
-  GetPlayerStatsArgsSchema,
-} from '../../../../src/tools/get_player_stats.js';
-import {
-  getScheduleCSVTool,
-  GetScheduleCSVArgsSchema,
-} from '../../../../src/tools/get_schedule_csv.js';
+import { getTeamScheduleTool } from '../../../../src/tools/get_team_schedule.js';
+import { getDivisionScheduleTool } from '../../../../src/tools/get_division_schedule.js';
 import { listScheduleOptionsTool } from '../../../../src/tools/list_schedule_options.js';
 
 /**
@@ -70,7 +60,7 @@ function resolveToolArgs(args: unknown): unknown {
           return parsed.params.arguments;
         }
       } catch (error) {
-        console.error('[scaha-mcp] Failed to parse request body:', error);
+        console.error('[pghl-mcp] Failed to parse request body:', error);
       }
     }
   }
@@ -82,47 +72,25 @@ function resolveToolArgs(args: unknown): unknown {
 // All tools are imported from src/tools/ and work with both STDIO and HTTP transports
 const handler = createMcpHandler(
   (server) => {
-    // Register get_schedule tool
+    // Register get_team_schedule tool
     server.tool(
-      getScheduleTool.definition.name,
-      getScheduleTool.definition.description || '',
-      GetScheduleArgsSchema.shape,
+      getTeamScheduleTool.definition.name,
+      getTeamScheduleTool.definition.description || '',
+      GetTeamScheduleArgsSchema.shape,
       async (args) => {
-        const result = await getScheduleTool.handler(resolveToolArgs(args));
-        return result;
+        const result = await getTeamScheduleTool.handler(resolveToolArgs(args));
+        return result as any;
       }
     );
 
-    // Register get_team_stats tool
+    // Register get_division_schedule tool
     server.tool(
-      getTeamStatsTool.definition.name,
-      getTeamStatsTool.definition.description || '',
-      GetTeamStatsArgsSchema.shape,
+      getDivisionScheduleTool.definition.name,
+      getDivisionScheduleTool.definition.description || '',
+      GetDivisionScheduleArgsSchema.shape,
       async (args) => {
-        const result = await getTeamStatsTool.handler(resolveToolArgs(args));
-        return result;
-      }
-    );
-
-    // Register get_player_stats tool
-    server.tool(
-      getPlayerStatsTool.definition.name,
-      getPlayerStatsTool.definition.description || '',
-      GetPlayerStatsArgsSchema.shape,
-      async (args) => {
-        const result = await getPlayerStatsTool.handler(resolveToolArgs(args));
-        return result;
-      }
-    );
-
-    // Register get_schedule_csv tool
-    server.tool(
-      getScheduleCSVTool.definition.name,
-      getScheduleCSVTool.definition.description || '',
-      GetScheduleCSVArgsSchema.shape,
-      async (args) => {
-        const result = await getScheduleCSVTool.handler(resolveToolArgs(args));
-        return result;
+        const result = await getDivisionScheduleTool.handler(resolveToolArgs(args));
+        return result as any;
       }
     );
 
@@ -135,14 +103,14 @@ const handler = createMcpHandler(
         const result = await listScheduleOptionsTool.handler(
           resolveToolArgs(args)
         );
-        return result;
+        return result as any;
       }
     );
   },
   {
     serverInfo: {
-      name: 'scaha-mcp',
-      version: '1.0.0',
+      name: 'pghl-mcp',
+      version: '0.1.1',
     },
   },
   { basePath: '/api' }

@@ -38,3 +38,24 @@ export const GetNextGameArgsSchema = z.object({
 });
 
 export type GetNextGameArgs = z.infer<typeof GetNextGameArgsSchema>;
+
+/**
+ * Schema for get_team_schedule tool arguments
+ */
+export const GetTeamScheduleArgsSchema = z.object({
+  team_id: z.string().describe('The team ID (e.g., "586889" for Las Vegas Storm 12u AA)'),
+  season_id: z.string().optional().describe('Optional season ID (e.g., "9486" for 2025-26 season)'),
+});
+
+export type GetTeamScheduleArgs = z.infer<typeof GetTeamScheduleArgsSchema>;
+
+/**
+ * Schema for get_division_schedule tool arguments
+ */
+export const GetDivisionScheduleArgsSchema = z.object({
+  season_id: z.string().describe('The season ID (e.g., "9486" for 2025-26 season)'),
+  division_id: z.string().optional().describe('Optional division ID to filter results'),
+  group_by_date: z.boolean().optional().describe('Group games by date for easier reading'),
+});
+
+export type GetDivisionScheduleArgs = z.infer<typeof GetDivisionScheduleArgsSchema>;
