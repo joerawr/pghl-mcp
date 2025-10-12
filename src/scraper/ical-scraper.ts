@@ -150,13 +150,15 @@ function formatDate(date: any): string {
 }
 
 /**
- * Format date to time string (e.g., "7:00 PM")
+ * Format date to time string in 24-hour format with seconds (e.g., "19:00:00")
+ * Required for HockeyGoTime travel calculator compatibility
  */
 function formatTime(date: Date): string {
   return new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    second: '2-digit',
+    hour12: false,
     timeZone: 'America/Los_Angeles', // Pacific time
   }).format(new Date(date));
 }
