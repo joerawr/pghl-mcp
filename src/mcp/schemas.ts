@@ -55,7 +55,6 @@ export type GetTeamScheduleArgs = z.infer<typeof GetTeamScheduleArgsSchema>;
 export const GetDivisionScheduleArgsSchema = z.object({
   season_id: z.string().describe('The season ID (e.g., "9486" for 2025-26 season)'),
   division_id: z.string().optional().describe('Optional division ID to filter results'),
-  group_by_date: z.boolean().optional().describe('Group games by date for easier reading'),
 });
 
 export type GetDivisionScheduleArgs = z.infer<typeof GetDivisionScheduleArgsSchema>;

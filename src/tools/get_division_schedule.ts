@@ -6,12 +6,10 @@
 import { z } from 'zod';
 import { fetchScheduleFromICal } from '../scraper/ical-scraper.js';
 import { logger } from '../utils/logger.js';
-import { formatGamesList } from '../utils/formatter.js';
 
 const GetDivisionScheduleSchema = z.object({
   season_id: z.string(),
   division_id: z.string().optional(),
-  group_by_date: z.boolean().optional(),
 });
 
 /**
@@ -21,7 +19,7 @@ export const getDivisionScheduleTool = {
   definition: {
     name: 'get_division_schedule',
     description:
-      'Get the full season schedule for all teams or a specific division in PGHL. Returns approximately 216 games for a full season. Use this for broader queries like "Show me all 12u AA games this weekend" or "What\'s happening across the league?" Use get_team_schedule for team-specific queries instead.',
+      'Get the full season schedule for all teams or a specific division in PGHL. Returns structured JSON with approximately 216 games for a full season. Use this for broader queries like "Show me all 12u AA games this weekend" or "What\'s happening across the league?" Use get_team_schedule for team-specific queries instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -32,10 +30,6 @@ export const getDivisionScheduleTool = {
         division_id: {
           type: 'string',
           description: 'Optional division ID to filter results. If omitted, returns all games for the entire season across all divisions.',
-        },
-        group_by_date: {
-          type: 'boolean',
-          description: 'Group games by date for easier reading. Defaults to false.',
         },
       },
       required: ['season_id'],
@@ -50,9 +44,9 @@ export const getDivisionScheduleTool = {
 
     try {
       // Validate arguments
-      const { season_id, division_id, group_by_date = false } = GetDivisionScheduleSchema.parse(args);
+      const { season_id, division_id } = GetDivisionScheduleSchema.parse(args);
 
-      logger.debug('Tool arguments validated:', { season_id, division_id, group_by_date });
+      logger.debug('Tool arguments validated:', { season_id, division_id });
 
       // Fetch schedule from iCal feed
       const games = await fetchScheduleFromICal({
@@ -73,19 +67,22 @@ export const getDivisionScheduleTool = {
 
       logger.info(`Found ${games.length} games`);
 
-      // Format games for output
-      const scopeDesc = division_id ? `Division` : `Full Season`;
-      const formattedSchedule = formatGamesList(games, {
-        title: `${scopeDesc} Schedule (${games.length} games)`,
-        includeOpponent: true,
-        groupByDate: group_by_date,
-      });
+      // Return structured JSON data for machine parsing
+      const response = {
+        games: games,
+        metadata: {
+          count: games.length,
+          season_id: season_id,
+          division_id: division_id,
+          type: division_id ? 'division_schedule' : 'full_season_schedule',
+        },
+      };
 
       return {
         content: [
           {
             type: 'text',
-            text: formattedSchedule,
+            text: JSON.stringify(response, null, 2),
           },
         ],
       };

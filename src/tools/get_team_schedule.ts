@@ -6,7 +6,6 @@
 import { z } from 'zod';
 import { fetchScheduleFromICal } from '../scraper/ical-scraper.js';
 import { logger } from '../utils/logger.js';
-import { formatGamesList } from '../utils/formatter.js';
 
 const GetTeamScheduleSchema = z.object({
   team_id: z.string(),
@@ -20,7 +19,7 @@ export const getTeamScheduleTool = {
   definition: {
     name: 'get_team_schedule',
     description:
-      'Get the schedule for a specific PGHL team. This is the primary tool for team-specific queries. Returns approximately 16 games for a single team. Use this when the user asks about a specific team\'s schedule.',
+      'Get the schedule for a specific PGHL team. This is the primary tool for team-specific queries. Returns structured JSON with approximately 16 games for a single team. Use this when the user asks about a specific team\'s schedule.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,17 +67,22 @@ export const getTeamScheduleTool = {
 
       logger.info(`Found ${games.length} games for team ${team_id}`);
 
-      // Format games for output
-      const formattedSchedule = formatGamesList(games, {
-        title: `Team Schedule (${games.length} games)`,
-        includeOpponent: true,
-      });
+      // Return structured JSON data for machine parsing
+      const response = {
+        games: games,
+        metadata: {
+          count: games.length,
+          team_id: team_id,
+          season_id: season_id,
+          type: 'team_schedule',
+        },
+      };
 
       return {
         content: [
           {
             type: 'text',
-            text: formattedSchedule,
+            text: JSON.stringify(response, null, 2),
           },
         ],
       };
